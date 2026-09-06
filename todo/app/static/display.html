@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M5Paper Attrappe</title>
+<style>
+  /* Schwarzweiss wie E-Ink: keine Farbe, keine Schatten, keine Rundungen. */
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    height: 100%;
+    background: #808080;
+    font-family: Helvetica, Arial, sans-serif;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #paper {
+    width: 960px; height: 540px;
+    background: #fff; color: #000;
+    border: 2px solid #000;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+    user-select: none;
+  }
+  header {
+    height: 72px; flex: 0 0 72px;
+    border-bottom: 4px solid #000;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 20px;
+  }
+  #count { font-size: 40px; font-weight: bold; letter-spacing: 1px; }
+  #clock { font-size: 28px; }
+  #list { flex: 1 1 auto; overflow: hidden; }
+  .row {
+    height: 68px;
+    border-bottom: 1px solid #000;
+    display: flex; align-items: center;
+    padding: 0 20px;
+    cursor: pointer;
+  }
+  .row:active { background: #000; color: #fff; }
+  .row.striking { text-decoration: line-through; }
+  .box {
+    width: 36px; height: 36px; flex: 0 0 36px;
+    border: 3px solid currentColor;
+    margin-right: 20px;
+  }
+  .text { font-size: 32px; flex: 1 1 auto; white-space: nowrap; overflow: hidden; }
+  .age { font-size: 26px; margin-left: 20px; }
+  #empty { font-size: 36px; padding: 40px 20px; }
+  footer {
+    height: 40px; flex: 0 0 40px;
+    border-top: 4px solid #000;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 20px;
+    font-size: 22px;
+  }
+  #setup {
+    position: fixed; inset: 0; background: #fff;
+    display: none; flex-direction: column; align-items: center; justify-content: center;
+    gap: 20px; font-size: 28px;
+  }
+  #setup input { font-size: 28px; padding: 10px; border: 2px solid #000; width: 420px; }
+  #setup button { font-size: 28px; padding: 10px 30px; border: 2px solid #000; background: #fff; cursor: pointer; }
+</style>
+</head>
+<body>
+<div id="paper">
+  <header>
+    <div id="count">–</div>
+    <div id="clock"></div>
+  </header>
+  <div id="list"></div>
+  <footer>
+    <div id="more"></div>
+    <div id="status">verbinde …</div>
+  </footer>
+</div>
+
+<div id="setup">
+  <div>API-Key eingeben</div>
+  <input id="keyInput" type="text" autocomplete="off">
+  <button id="keySave">Speichern</button>
+</div>
+
+<script>
+// Diese Seite laeuft nur im LAN, deshalb darf der Key aus der URL oder
+// dem localStorage kommen.
+var ROW_HEIGHT = 68;
+var VERSION_INTERVAL = 10000;  // das Geraet fragt spaeter im Minutentakt
+var apiKey = "";
+var lastVersion = null;
+
+function loadKey() {
+  var fromUrl = new URLSearchParams(location.search).get("key");
+  if (fromUrl) {
+    localStorage.setItem("apiKey", fromUrl);
+    history.replaceState(null, "", location.pathname);
+    return fromUrl;
+  }
+  return localStorage.getItem("apiKey") || "";
+}
+
+function askForKey() {
+  document.getElementById("setup").style.display = "flex";
+  document.getElementById("keyInput").focus();
+}
+
+document.getElementById("keySave").addEventListener("click", function () {
+  var value = document.getElementById("keyInput").value.trim();
+  if (!value) return;
+  localStorage.setItem("apiKey", value);
+  location.reload();
+});
+
+function call(path, options) {
+  options = options || {};
+  options.headers = { "X-API-Key": apiKey };
+  return fetch(path, options).then(function (response) {
+    if (response.status === 401) {
+      localStorage.removeItem("apiKey");
+      askForKey();
+      throw new Error("401");
+    }
+    if (!response.ok) throw new Error("HTTP " + response.status);
+    return response.status === 204 ? null : response.json();
+  });
+}
+
+function visibleRows() {
+  var height = document.getElementById("list").clientHeight;
+  return Math.max(1, Math.floor(height / ROW_HEIGHT));
+}
+
+function render(payload) {
+  document.getElementById("count").textContent = "OFFEN " + payload.open_count;
+  var list = document.getElementById("list");
+  list.innerHTML = "";
+
+  if (payload.items.length === 0) {
+    var empty = document.createElement("div");
+    empty.id = "empty";
+    empty.textContent = "Nichts offen.";
+    list.appendChild(empty);
+  } else {
+    var shown = payload.items.slice(0, visibleRows());
+    shown.forEach(function (item) {
+      var row = document.createElement("div");
+      row.className = "row";
+
+      var box = document.createElement("div");
+      box.className = "box";
+
+      var text = document.createElement("div");
+      text.className = "text";
+      text.textContent = item.text;
+
+      var age = document.createElement("div");
+      age.className = "age";
+      age.textContent = item.age_days > 0 ? item.age_days + "d" : "heute";
+
+      row.appendChild(box);
+      row.appendChild(text);
+      row.appendChild(age);
+      row.addEventListener("click", function () { markDone(item.id, row); });
+      list.appendChild(row);
+    });
+
+    var hidden = payload.open_count - shown.length;
+    document.getElementById("more").textContent = hidden > 0 ? "+ " + hidden + " weitere" : "";
+  }
+
+  if (payload.items.length === 0) document.getElementById("more").textContent = "";
+  document.getElementById("status").textContent = "Stand " + payload.generated_at.substring(11, 16) + " UTC · v" + payload.version;
+  document.getElementById("clock").textContent = new Date().toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+  lastVersion = payload.version;
+}
+
+function refresh() {
+  return call("/api/display").then(render).catch(function (error) {
+    document.getElementById("status").textContent = "Fehler: " + error.message;
+  });
+}
+
+function markDone(id, row) {
+  row.classList.add("striking");
+  call("/api/tasks/" + id + "/done", { method: "POST" })
+    .then(refresh)
+    .catch(function () { row.classList.remove("striking"); });
+}
+
+function checkVersion() {
+  // Genau der Weg, den der ESP32 spaeter geht: erst die Version, dann
+  // nur bei Abweichung den vollen Payload.
+  call("/api/display/version").then(function (data) {
+    if (data.version !== lastVersion) refresh();
+  }).catch(function (error) {
+    document.getElementById("status").textContent = "Fehler: " + error.message;
+  });
+}
+
+apiKey = loadKey();
+if (!apiKey) {
+  askForKey();
+} else {
+  refresh();
+  setInterval(checkVersion, VERSION_INTERVAL);
+}
+window.addEventListener("resize", function () { if (lastVersion !== null) refresh(); });
+</script>
+</body>
+</html>
