@@ -5,7 +5,11 @@ cards:
     vertical: false
     features_position: bottom
     features:
-      - type: media-player-playback-controls
+      - type: media-player-playback
+        controls:
+          - media_previous_track
+          - media_play_pause
+          - media_next_track
       - type: media-player-volume-slider
   - type: grid
     columns: 4

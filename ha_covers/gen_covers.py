@@ -55,7 +55,11 @@ def main(path):
         "    vertical: false",
         "    features_position: bottom",
         "    features:",
-        "      - type: media-player-playback-controls",
+        "      - type: media-player-playback",
+        "        controls:",
+        "          - media_previous_track",
+        "          - media_play_pause",
+        "          - media_next_track",
         "      - type: media-player-volume-slider",
         "  - " + out[0],
     ] + ["    " + l for l in out[1:]]
