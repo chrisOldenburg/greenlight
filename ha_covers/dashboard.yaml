@@ -1,0 +1,33 @@
+type: grid
+columns: 4
+square: true
+cards:
+  - type: picture
+    image: /local/covers/37i9dQZF1DZ06evO1DHoaY.jpg
+    alt_text: "This Is Bob Marley & The Wailers"
+    tap_action:
+      action: perform-action
+      perform_action: media_player.play_media
+      target:
+        entity_id: media_player.schlafzimmer
+      data:
+        media_content_type: music
+        media_content_id: https://open.spotify.com/playlist/37i9dQZF1DZ06evO1DHoaY
+  - type: picture
+    image: /local/covers/1Y620MsEFRKkindjPq4IvN.jpg
+    alt_text: "Saint-Saens: Der Karneval der Tiere"
+    tap_action:
+      action: perform-action
+      perform_action: media_player.play_media
+      target:
+        entity_id: media_player.schlafzimmer
+      data:
+        media_content_type: music
+        media_content_id: https://open.spotify.com/album/1Y620MsEFRKkindjPq4IvN
+  - type: button
+    icon: mdi:stop
+    tap_action:
+      action: perform-action
+      perform_action: media_player.media_pause
+      target:
+        entity_id: media_player.schlafzimmer

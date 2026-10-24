@@ -1,0 +1,17 @@
+alias: Kinder-Album per NFC
+mode: restart
+triggers:
+  - trigger: tag
+actions:
+  - variables:
+      albums:
+        "TAG-ID-1": "https://open.spotify.com/playlist/37i9dQZF1DZ06evO1DHoaY"  # This Is Bob Marley & The Wailers
+        "TAG-ID-2": "https://open.spotify.com/album/1Y620MsEFRKkindjPq4IvN"  # Saint-Saens: Der Karneval der Tiere
+  - condition: template
+    value_template: "{{ trigger.tag_id in albums }}"
+  - action: media_player.play_media
+    target:
+      entity_id: media_player.schlafzimmer
+    data:
+      media_content_type: music
+      media_content_id: "{{ albums[trigger.tag_id] }}"
