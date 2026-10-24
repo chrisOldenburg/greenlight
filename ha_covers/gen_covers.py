@@ -46,16 +46,20 @@ def main(path):
             "        media_content_type: music",
             f"        media_content_id: {link}",
         ]
-    out += [
-        "  - type: button",
-        "    icon: mdi:stop",
-        "    tap_action:",
-        "      action: perform-action",
-        "      perform_action: media_player.media_pause",
-        "      target:",
-        f"        entity_id: {PLAYER}",
-    ]
-    Path("dashboard.yaml").write_text("\n".join(out) + "\n", encoding="utf-8")
+    # Steuerung (Play/Pause, Zurück/Vor, Lautstärke) als Standard-Tile-Karte über dem Cover-Grid
+    stack = [
+        "type: vertical-stack",
+        "cards:",
+        "  - type: tile",
+        f"    entity: {PLAYER}",
+        "    vertical: false",
+        "    features_position: bottom",
+        "    features:",
+        "      - type: media-player-playback-controls",
+        "      - type: media-player-volume-slider",
+        "  - " + out[0],
+    ] + ["    " + l for l in out[1:]]
+    Path("dashboard.yaml").write_text("\n".join(stack) + "\n", encoding="utf-8")
     print("dashboard.yaml geschrieben")
 
     auto = [
